@@ -1,10 +1,9 @@
-name = "grad_intercept_template"
-prefix = "grad_intercept_template"
-author = "Gruppe Adler"
+name = "tf47_prism"
+prefix = "tf47_prism"
+author = "TF47 Dragon"
 folder_optionals = false
 files = [
     "mod.cpp",
-    "Adler.paa",
     "LICENSE",
     "README.md"
 ]

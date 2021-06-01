@@ -21,8 +21,11 @@ ADD_CUSTOM_COMMAND(
             ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/version.cmake)
 
 
+find_package(cpr CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 # Boost
-find_path(BOOST_ALGORITHM_INCLUDE_DIRS "boost/algorithm/algorithm.hpp")
+set(Boost_USE_STATIC_LIBS ON)
+FIND_PACKAGE(Boost 1.69 COMPONENTS program_options iostreams REQUIRED)
 
 #include the Intercept headers from the submodule
 set(INTERCEPT_CLIENT_PATH "${CMAKE_SOURCE_DIR}/intercept/src/client")
