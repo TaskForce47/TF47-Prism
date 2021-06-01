@@ -88,13 +88,13 @@ bool tf47::prism::whitelist::check_whitelist(r_string player_uid, std::vector<in
 	{
 		auto permissions = player_permissions.at(player_uid);
 		
-		for each (auto required_permission in required_permissions)
+		for (auto required_permission: required_permissions)
 		{
 			if (std::find(permissions.begin(), permissions.end(), required_permission) == permissions.end())
 				return false;
 		}
 
-		for each (auto minimal_permission in minimal_permissions)
+		for (auto minimal_permission: minimal_permissions)
 		{
 			if (std::find(permissions.begin(), permissions.end(), minimal_permission) == permissions.end())
 				return true;
