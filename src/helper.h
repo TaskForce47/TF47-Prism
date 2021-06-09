@@ -18,4 +18,12 @@ namespace tf47::prism::helper
 		).capture(game_object, object_type_return);
 		return object_type_return;
 	}
+
+	static std::string get_display_name_vehicle(object& vehicle)
+	{
+		const std::string vehicleName = get_text(
+			intercept::sqf::config_entry(intercept::sqf::config_file()) >> "CfgVehicles" >>
+			intercept::sqf::type_of(vehicle) >> "displayName");
+		return vehicleName;
+	}
 }
