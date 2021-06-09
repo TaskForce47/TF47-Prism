@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.8)
 
 
 file(GLOB_RECURSE INTERCEPT_PLUGIN_SOURCES *.h *.hpp *.c *.cpp)
@@ -54,7 +54,8 @@ add_custom_command(TARGET ${INTERCEPT_PLUGIN_NAME} POST_BUILD COMMAND ${CMAKE_CO
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${INTERCEPT_INCLUDE_PATH})
 
-target_include_directories(${INTERCEPT_PLUGIN_NAME} PRIVATE ${BOOST_ALGORITHM_INCLUDE_DIRS})
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE cpr)
+target_link_libraries(${INTERCEPT_PLUGIN_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES PREFIX "")
 set_target_properties(${INTERCEPT_PLUGIN_NAME} PROPERTIES FOLDER "${CMAKE_PROJECT_NAME}")
