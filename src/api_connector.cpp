@@ -51,6 +51,85 @@ void tf47::prism::api_connector::ApiClient::create_user(std::string player_uid, 
 	}
 }
 
+void tf47::prism::api_connector::ApiClient::create_session(std::string world_name)
+{
+	json j;
+	j["missionId"] = configuration::mission_id;
+	j["missionType"] = configuration::mission_type;
+	j["worldName"] = world_name;
+
+	std::stringstream route;
+	route << configuration::hostname << "/api/session";
+
+
+	auto response = cpr::Post(cpr::Url{ route.str() }, cpr::Header{
+			{ "Content-Type", "application/json" },
+			{ "TF47AuthKey", configuration::api_key }
+		},
+		cpr::Body(j.dump()));
+
+	if (response.status_code == 200 || response.status_code == 201)
+	{
+		json resJ = json::parse(response.text);
+		configuration::session_id = resJ["sessionId"].get<int>();
+	}
+	else 
+	{
+		std::stringstream ss;
+		ss << "Failed to create new session! [Status code: " << response.status_code << " ] [Message: " << response.text << " ] [Payload: " << j.dump() << "] [Route: " << route.str() << "]";
+		throw std::exception(ss.str().c_str());
+	}
+}
+
+void tf47::prism::api_connector::ApiClient::end_session()
+{
+	std::stringstream route;
+	route << configuration::hostname << "/api/Session/" << configuration::session_id << "/endSession";
+
+
+	auto response = cpr::Put(cpr::Url{ route.str() }, cpr::Header{
+			{ "Content-Type", "application/json" },
+			{ "TF47AuthKey", configuration::api_key }
+		});
+
+	
+	if (response.status_code == 200) 
+	{
+		
+	}
+	else 
+	{
+		std::stringstream ss;
+		ss << "Failed to stop session! [Status code: " << response.status_code << " ] [Message: " << response.text << " ] [Route: " << route.str() << "]";
+		throw std::exception(ss.str().c_str());
+	}
+}
+
+void tf47::prism::api_connector::ApiClient::update_ticket_count(std::string player_uid, std::string message,
+	int ticket_change, int ticket_count_new)
+{	
+	std::stringstream route;
+	route << configuration::hostname << "/api/ticket/" << configuration::session_id;
+
+	json j;
+	j["PlayerUid"] = player_uid;
+	j["TicketChange"] = ticket_change;
+	j["TicketCountNew"] = ticket_count_new;
+	j["Message"] = message;
+
+	auto response = cpr::Post(cpr::Url{ route.str() }, cpr::Header{
+			{ "Content-Type", "application/json" },
+			{ "TF47AuthKey", configuration::api_key }
+		}, cpr::Body(j.dump()));
+
+	if (response.status_code != 200)
+	{
+		std::stringstream ss;
+		ss << "Failed to insert new ticket count to database! [Status code:  " << response.status_code << " ] [Message: " << response.text << " ] [Payload: " << j.dump() << "] [Route: " << route.str() << "]";
+		write_log(ss.str(), tf47::prism::logger::Warning);
+	}
+}
+
 std::vector<int> tf47::prism::api_connector::ApiClient::get_whitelist(std::string playerUid)
 {
 

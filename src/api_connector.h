@@ -1,12 +1,4 @@
-//
-// Created by Oliver on 20.05.2021.
-//
 #pragma once
-
-#ifndef TF47_PRISM_API_CONNECTOR_H
-#define TF47_PRISM_API_CONNECTOR_H
-
-#endif //TF47_PRISM_API_CONNECTOR_H
 
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
@@ -27,6 +19,9 @@ namespace tf47::prism::api_connector
 
 		bool check_user_exist(std::string player_uid);
 		void create_user(std::string player_uid, std::string player_name);
+		void create_session(std::string world_name);
+		void end_session();
+		void update_ticket_count(std::string player_uid, std::string message, int ticket_change, int ticket_count_new);
 		std::vector<int> get_whitelist(std::string playerUid);
 	};
 }
