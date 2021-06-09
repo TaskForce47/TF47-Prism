@@ -62,8 +62,11 @@ namespace tf47::prism::configuration
 		use_slot_traits = get_number(config_entry >> "UseSlotTraits");
 		use_slot_whitelist = get_number(config_entry >> "UseSlotWhitelist");
 		use_attack_aircraft_whitelist = get_number(config_entry >> "UseAttackAircraftWhitelist");
+		use_ticketsystem = get_number(config_entry >> "UseTicketsystem");
 
-		use_attack_aircraft_whitelist = get_number(config_entry >> "UseTicketsystem");
+		mission_id = get_number(config_entry >> "MissionId");
+		mission_type = get_text(config_entry >> "MissionType");
+		
 
 		if (is_class(intercept::sqf::config_entry(intercept::sqf::config_file()) >> "CfgPatches" >> "mission_configs"))
 		{
