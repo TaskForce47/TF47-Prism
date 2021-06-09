@@ -31,7 +31,7 @@ bool tf47::prism::whitelist::do_permission_check(object& unit, object& vehicle)
 			}
 			else
 			{
-				if (!check_whitelist(unit, std::vector{ WHITELIST_ATTACK_AIRCRAFT, WHITELIST_ROTARY_WING }, {}))
+				if (!check_whitelist(unit, std::vector{ WHITELIST_ATTACK_AIRCRAFT, WHITELIST_ROTARY_WING }, std::vector<int> {}))
 					kick_from_vehicle(unit, vehicle,
 						r_string("You are missing permissions to play as an attack rotary wing aircraft"));
 			}
@@ -54,7 +54,7 @@ bool tf47::prism::whitelist::do_permission_check(object& unit, object& vehicle)
 			}
 			else
 			{
-				if (!check_whitelist(unit, std::vector{ WHITELIST_ATTACK_AIRCRAFT, WHITELIST_FIXED_WING }, {}))
+				if (!check_whitelist(unit, std::vector{ WHITELIST_ATTACK_AIRCRAFT, WHITELIST_FIXED_WING }, std::vector<int> {}))
 					kick_from_vehicle(unit, vehicle,
 						r_string("You are missing permissions to play as an attack fixed wing aircraft"));
 			}
@@ -73,12 +73,13 @@ bool tf47::prism::whitelist::do_permission_check(object& unit, object& vehicle)
 			}
 			else
 			{
-				if (!check_whitelist(unit, std::vector{ WHITELIST_TANK}, {}))
+				if (!check_whitelist(unit, std::vector{ WHITELIST_TANK}, std::vector<int> {}))
 					kick_from_vehicle(unit, vehicle,
 						r_string("You are missing permissions to play as a tank"));
 			}
 		}
 	}
+	return true;
 }
 
 bool tf47::prism::whitelist::check_whitelist(r_string player_uid, std::vector<int>& required_permissions, std::vector<int>& minimal_permissions)
@@ -123,7 +124,7 @@ bool tf47::prism::whitelist::kick_from_vehicle(object& player, object& vehicle, 
 	if (!is_kick_allowed(player))
 		return false;
 
-	if (!advanced_notifications) {
+	if (!configuration::advanced_notifications) {
 
 		
 		const auto params_hint = auto_array({ game_value("You are not allowed to use this vehicle") });
@@ -145,7 +146,7 @@ bool tf47::prism::whitelist::kick_to_lobby(object player)
 {
 	intercept::client::invoker_lock lock;
 
-	if (!advanced_notifications) {
+	if (!configuration::advanced_notifications) {
 		const auto params = auto_array({ game_value("end1"), game_value("false") });
 		intercept::sqf::remote_exec(params, "BIS_fnc_endMission", player, false);
 	} else {
@@ -191,7 +192,7 @@ bool tf47::prism::whitelist::init_slot_traits(object& unit)
 
 bool tf47::prism::whitelist::init_player_scripts(object& unit)
 {
-	
+	return true;
 }
 
 bool tf47::prism::whitelist::init_load_whitelist(r_string& player_uid, r_string& player_name)
@@ -236,6 +237,7 @@ bool tf47::prism::whitelist::reload_whitelist(r_string& player_uid)
 			player_permissions.insert_or_assign(player_uid, permissions);
 			player_permission_lock.unlock();
 		}).detach();
+	return true;
 }
 
 game_value handle_cmd_register_slot_whitelist(game_state& gs, game_value_parameter left_args, game_value_parameter right_args)
@@ -260,6 +262,10 @@ game_value handle_cmd_register_slot_whitelist(game_state& gs, game_value_paramet
 		minimal_permissions.push_back(minimal_permission);
 	}
 
+	auto slot = tf47::prism::whitelist::slots.at(slot_name);
+	slot.minimal_required_permission = minimal_permissions;
+	slot.strict_required_permission = required_permissions;
+	
 	std::stringstream ss;
 	ss << "Slot whitelist " << slot_name << "has been registered for the slot whitelist";
 	tf47::prism::logger::write_log(ss.str());
@@ -267,7 +273,7 @@ game_value handle_cmd_register_slot_whitelist(game_state& gs, game_value_paramet
 }
 
 
-game_value handle_cmd_register_slot_traits(game_state& gs, game_value_parameter left_args, game_value_parameter right_args)
+game_value handle_cmd_whitelist_register_slot_traits(game_state& gs, game_value_parameter left_args, game_value_parameter right_args)
 {
 	const r_string slot_name = left_args;
 	if (tf47::prism::whitelist::slots.count(slot_name) == 0)
@@ -283,12 +289,13 @@ game_value handle_cmd_register_slot_traits(game_state& gs, game_value_parameter 
 		traits.push_back(element);
 	}
 
-	
 	auto slot = tf47::prism::whitelist::slots.at(slot_name);
 	slot.traits = traits;
+
+	return true;
 }
 
-game_value handle_cmd_unit_created(game_state& gs, game_value_parameter right_args)
+game_value handle_cmd_whitelist_unit_created(game_state& gs, game_value_parameter right_args)
 {
 	object unit = right_args;
 
@@ -299,7 +306,7 @@ game_value handle_cmd_unit_created(game_state& gs, game_value_parameter right_ar
 	return true;
 }
 
-game_value handle_cmd_register_attack_aircraft(game_state& gs, game_value_parameter right_args)
+game_value handle_cmd_whitelist_register_attack_aircraft(game_state& gs, game_value_parameter right_args)
 {
 	auto_array<game_value> aircraft;
 	try 
@@ -327,18 +334,18 @@ game_value handle_cmd_register_attack_aircraft(game_state& gs, game_value_parame
 
 void tf47::prism::whitelist::initialize_commands()
 {
-	static auto cmd_unit_created = intercept::client::host::register_sqf_command(
+	static auto cmd_whitelist_unit_created = intercept::client::host::register_sqf_command(
 		"TF47WhitelistUnitCreated", "Internal use only", 
-		handle_cmd_unit_created,game_data_type::BOOL, game_data_type::OBJECT);
-	static auto cmd_register_attack_aircraft = intercept::client::host::register_sqf_command(
+		handle_cmd_whitelist_unit_created,game_data_type::BOOL, game_data_type::OBJECT);
+	static auto cmd_whitelist_register_attack_aircraft = intercept::client::host::register_sqf_command(
 		"TF47WhitelistRegisterAttackAircraft", "", 
-		handle_cmd_register_attack_aircraft, game_data_type::BOOL, game_data_type::ARRAY);
-	static auto cmd_register_slot_whitelist = intercept::client::host::register_sqf_command(
+		handle_cmd_whitelist_register_attack_aircraft, game_data_type::BOOL, game_data_type::ARRAY);
+	static auto cmd_whitelist_register_slot_whitelist = intercept::client::host::register_sqf_command(
 		"TF47WhitelistRegisterSlotWhitelist", "", 
 		handle_cmd_register_slot_whitelist, game_data_type::BOOL, game_data_type::STRING, game_data_type::ARRAY);
-	static auto cmd_register_slot_traits = intercept::client::host::register_sqf_command(
+	static auto cmd_whitelist_register_slot_traits = intercept::client::host::register_sqf_command(
 		"TF47WhitelistRegisterSlotTraits", "", 
-		handle_cmd_register_slot_traits, game_data_type::BOOL, game_data_type::STRING, game_data_type::ARRAY);
+		handle_cmd_whitelist_register_slot_traits, game_data_type::BOOL, game_data_type::STRING, game_data_type::ARRAY);
 }
 
 
@@ -346,13 +353,6 @@ void tf47::prism::whitelist::initialize_commands()
 void tf47::prism::whitelist::start_whitelist()
 {
 	if (!configuration::use_whitelist) return;
-	
-	if (is_class(intercept::sqf::config_entry(intercept::sqf::config_file()) >> "CfgPatches" >> "mission_configs"))
-	{
-		logger::write_log("TF47 Mod CfgNotifcation addon detected! Using advanced notifications!");
-		advanced_notifications = true;
-	}
-	
 
 	slots.clear();
 	player_permissions.clear();
@@ -389,6 +389,8 @@ void tf47::prism::whitelist::start_whitelist()
 			if (vehicleIn.is_null()) return;
 			do_permission_check(newBody, vehicleIn);
 		});
+
+	prism::whitelist::start_whitelist_reload();
 }
 
 void tf47::prism::whitelist::start_whitelist_reload()

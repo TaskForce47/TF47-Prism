@@ -7,6 +7,7 @@
 
 #include "intercept.hpp"
 #include "api_connector.h"
+#include "configuration.h"
 #include "helper.h"
 #include "logger.h"
 
@@ -50,29 +51,27 @@ namespace tf47::prism::whitelist
 
 	static std::mutex player_permission_lock;
 	static std::unordered_map<r_string, std::vector<int>> player_permissions;
-	
-	static bool advanced_notifications = false;
 
-	static bool do_permission_check(object& unit, object& vehicle);
+	bool do_permission_check(object& unit, object& vehicle);
 	
-	static bool check_whitelist(r_string player_uid, std::vector<int>& required_permissions, std::vector<int>& minimal_permissions);
-	static bool check_trait(object& unit, const std::string required_trait);
+	bool check_whitelist(r_string player_uid, std::vector<int>& required_permissions, std::vector<int>& minimal_permissions);
+	bool check_trait(object& unit, const std::string required_trait);
 
-	static bool kick_from_vehicle(object& player, object& vehicle, r_string message);
-	static bool kick_to_lobby(object player);
+	bool kick_from_vehicle(object& player, object& vehicle, r_string message);
+	bool kick_to_lobby(object player);
 
-	static bool is_kick_allowed(object& vehicle);
-	static bool is_attack_aircraft(r_string& classname);
+	bool is_kick_allowed(object& vehicle);
+	bool is_attack_aircraft(r_string& classname);
 	
-	static bool init_slot_traits(object& unit);
-	static bool init_player_scripts(object& unit);
-	static bool init_load_whitelist(r_string& player_uid, r_string& player_name);
+	bool init_slot_traits(object& unit);
+	bool init_player_scripts(object& unit);
+	bool init_load_whitelist(r_string& player_uid, r_string& player_name);
 	
-	static bool handle_player_connected(r_string& player_uid, r_string& player_name);
-	static bool reload_whitelist(r_string& player_uid);
+	bool handle_player_connected(r_string& player_uid, r_string& player_name);
+	bool reload_whitelist(r_string& player_uid);
 	
-	static void initialize_commands();
-	static void start_whitelist();
-	static void start_whitelist_reload();
-	static void stop_whitelist_reload();
+	void initialize_commands();
+	void start_whitelist();
+	void start_whitelist_reload();
+	void stop_whitelist_reload();
 }
