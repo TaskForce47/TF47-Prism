@@ -11,14 +11,28 @@ namespace tf47::prism::configuration
 {
 	static std::string api_key;
 	static std::string hostname;
+
+	static int session_id = -1;
+	static bool session_started = false;
+
+	
+	static bool tf47_echelon_loaded = false;
+	
 	static bool use_whitelist = false;
 	static bool use_slot_traits = false;
 	static bool use_slot_whitelist = false;
 	static bool use_attack_aircraft_whitelist = false;
+
+	static bool use_ticketsystem = false;
+
+	static bool advanced_notifications = false;
+	
+	static int mission_id = 0;
+	static std::string mission_type = "COOP";
 	
 	inline void load_configuration()
 	{
-		std::filesystem::path configFilePath("@tf47_prism/config.json");
+		const std::filesystem::path configFilePath("config.json");
 
 		if (!exists(configFilePath))
 			throw std::filesystem::filesystem_error("Config file not found", configFilePath, std::error_code());
@@ -49,6 +63,15 @@ namespace tf47::prism::configuration
 		use_slot_whitelist = get_number(config_entry >> "UseSlotWhitelist");
 		use_attack_aircraft_whitelist = get_number(config_entry >> "UseAttackAircraftWhitelist");
 
+		use_attack_aircraft_whitelist = get_number(config_entry >> "UseTicketsystem");
+
+		if (is_class(intercept::sqf::config_entry(intercept::sqf::config_file()) >> "CfgPatches" >> "mission_configs"))
+		{
+			logger::write_log("TF47 Mod CfgNotifcation addon detected! Using advanced notifications!");
+			advanced_notifications = true;
+		}
+
 		logger::write_log("Mission config settings loaded!");
 	}
+
 }
