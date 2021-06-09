@@ -51,7 +51,16 @@ void intercept::pre_start()
     }
 	else
     {
-		    
+        auto player_connected_eventhandler = intercept::client::addMissionEventHandler<client::eventhandlers_mission::PlayerConnected>([](int id, types::r_string uid, types::r_string name, bool jip, int owner)
+            {
+                std::thread([name, uid]()
+                {
+					api_connector::ApiClient client;
+                    if (!client.check_user_exist())
+                        client.create_user(uid.c_str(), name.c_str());
+                	
+                }).detach();
+            });
     }
 	
     whitelist::initialize_commands();
