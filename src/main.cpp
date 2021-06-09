@@ -56,7 +56,7 @@ void intercept::pre_start()
                 std::thread([name, uid]()
                 {
 					api_connector::ApiClient client;
-                    if (!client.check_user_exist())
+                    if (!client.check_user_exist(uid.c_str()))
                         client.create_user(uid.c_str(), name.c_str());
                 	
                 }).detach();
