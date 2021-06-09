@@ -13,7 +13,7 @@ class CfgPatches {
     };
 };
 class Intercept {
-    class grad {
+    class tf47 {
         class tf47_prism {
             pluginName = "tf47_prism";
         };
