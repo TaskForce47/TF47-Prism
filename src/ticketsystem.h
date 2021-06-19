@@ -15,6 +15,7 @@ namespace tf47::prism::ticketsystem
 		int ticket_cost;
 		r_string vehicle_type;
 		std::vector<intercept::client::EHIdentifierHandle> eventhandlers;
+		intercept::client::EHIdentifierHandle get_in_eventhandler;
 	};
 
 	struct RegisteredUnit
@@ -39,10 +40,11 @@ namespace tf47::prism::ticketsystem
 	void display_ticket_change(r_string message, int ticket_change, int new_ticket_count);
 	void change_ticket_count(r_string message, int ticket_change, r_string player_uid);
 	
-	static std::unordered_map<std::string, RegisteredSlot> registered_slots;
+	static helper::thread_safe_vector<std::string, RegisteredSlot> registered_slots;
 	static std::vector<RegisteredVehicle> registered_vehicles;
-	static std::unordered_map<std::string, RegisteredUnit> registered_units;
+	static helper::thread_safe_vector<std::string, RegisteredUnit> registered_units;
 
+	void initialize_player_scripts(object unit);
 	void initialize_commands();
 	void start_ticketsystem();
 }
