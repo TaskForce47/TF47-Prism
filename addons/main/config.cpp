@@ -2,7 +2,7 @@
 
 class CfgPatches {
     class tf47_prism_main {
-        name = "Gruppe Adler Intercept Template";
+        name = "Prism";
         units[] = {};
         weapons[] = {};
         requiredVersion = 1.92;
