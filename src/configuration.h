@@ -5,76 +5,41 @@
 #include <nlohmann/json.hpp>
 
 #include "intercept.hpp"
+#include "../intercept/src/host/common/singleton.hpp"
 #include "logger.h"
+
+#define WRITE_LOG_AND_CLEAR_STRINGSTREAM(x) logger::write_log(x.str()); x.clear(); x.str("");
 
 namespace tf47::prism::configuration
 {
-	static std::string api_key;
-	static std::string hostname;
-
-	static int session_id = -1;
-	static bool session_started = false;
-
-	
-	static bool tf47_echelon_loaded = false;
-	
-	static bool use_whitelist = false;
-	static bool use_slot_traits = false;
-	static bool use_slot_whitelist = false;
-	static bool use_attack_aircraft_whitelist = false;
-
-	static bool use_ticketsystem = false;
-
-	static bool advanced_notifications = false;
-	
-	static int mission_id = 0;
-	static std::string mission_type = "COOP";
-	
-	inline void load_configuration()
+	class configuration : public intercept::singleton<configuration>
 	{
-		const std::filesystem::path configFilePath("config.json");
+	public:
+		std::string api_key;
+		std::string hostname;
 
-		if (!exists(configFilePath))
-			throw std::filesystem::filesystem_error("Config file not found", configFilePath, std::error_code());
-
-		auto stringPath = configFilePath.string();
-
-		std::ifstream i(configFilePath);
-		nlohmann::json j;
-		i >> j;
-
-		api_key = j["ApiKey"].get<std::string>();
-		hostname = j["Hostname"].get<std::string>();
-	}
-
-	inline void load_mission_config()
-	{
-		intercept::client::invoker_lock lock;
-		const auto config_entry = intercept::sqf::config_entry(intercept::sqf::mission_config_file()) >> ("TF47Prism");
+		int session_id;
+		bool session_started;
 
 
-		if (!is_class(config_entry))
-		{
-			logger::write_log("Cannot parse mission settings, no config class found in description.ext! Falling back to default settings");
-			return;
-		}
-		use_whitelist = get_number(config_entry >> "UseWhitelist");
-		use_slot_traits = get_number(config_entry >> "UseSlotTraits");
-		use_slot_whitelist = get_number(config_entry >> "UseSlotWhitelist");
-		use_attack_aircraft_whitelist = get_number(config_entry >> "UseAttackAircraftWhitelist");
-		use_ticketsystem = get_number(config_entry >> "UseTicketsystem");
+		bool tf47_echelon_loaded;
 
-		mission_id = get_number(config_entry >> "MissionId");
-		mission_type = get_text(config_entry >> "MissionType");
-		
+		bool use_whitelist;
+		bool use_slot_traits;
+		bool use_slot_whitelist;
+		bool use_attack_aircraft_whitelist;
 
-		if (is_class(intercept::sqf::config_entry(intercept::sqf::config_file()) >> "CfgPatches" >> "mission_configs"))
-		{
-			logger::write_log("TF47 Mod CfgNotifcation addon detected! Using advanced notifications!");
-			advanced_notifications = true;
-		}
+		bool use_ticketsystem;
 
-		logger::write_log("Mission config settings loaded!");
-	}
+		bool advanced_notifications;
 
+		int mission_id;
+		std::string mission_type;
+
+		void load_configuration();
+
+		void load_mission_config();
+
+		void log_loaded_settings();
+	};
 }
