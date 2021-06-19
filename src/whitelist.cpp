@@ -1,115 +1,221 @@
-//
-// Created by Oliver on 20.05.2021.
-//
-
 #include "whitelist.h"
 
-bool tf47::prism::whitelist::do_permission_check(object& unit, object& vehicle)
+void tf47::prism::whitelist::do_permission_check(object& unit, object& vehicle)
 {
 	intercept::client::invoker_lock lock;
-	auto vehicle_type = helper::get_object_type(vehicle);
-	const r_string player_uid = intercept::sqf::get_player_uid(unit);
-	const bool is_driver = intercept::sqf::driver(vehicle) == unit;
-	bool is_allowed = true;
+
+	//double checked @Desty :D
+	if (!is_kick_allowed(vehicle)) return; //check vehicle is allowed to be checked against the whitelist
+	
+	
+	const bool is_driver = intercept::sqf::is_equal_to(intercept::sqf::driver(vehicle), unit);
+	const bool is_commander = intercept::sqf::is_equal_to(intercept::sqf::commander(vehicle),unit);
+	const bool is_gunner = intercept::sqf::is_equal_to(intercept::sqf::gunner(vehicle), unit);
+
+	if (!(is_driver || is_commander || is_gunner)) return; //check unit is on a slot that requires a whitelist
+
+	const r_string vehicle_type = helper::get_object_type(vehicle);
 	
 	std::stringstream ss;
 	
 	if (vehicle_type == "Helicopter")
 	{
-		if (is_attack_aircraft(vehicle_type))
-		{
-			if (configuration::use_slot_traits)
-			{
-				if (is_driver && !check_trait(unit, TRAIT_HELICOPTER_ATTACK_PILOT))
-					kick_from_vehicle(unit, vehicle,
-					                  r_string(
-						                  "You must be on the rotary wings attack pilot slot to play this vehicle role"));
-				if (!is_driver && !check_trait(unit, TRAIT_ATTACK_HELICOPTER_CREW))
-					kick_from_vehicle(unit, vehicle,
-						r_string(
-							"You must be on the rotary wing attack crew slot to play this vehicle role"));
-			}
-			else
-			{
-				if (!check_whitelist(unit, std::vector{ WHITELIST_ATTACK_AIRCRAFT, WHITELIST_ROTARY_WING }, std::vector<int> {}))
-					kick_from_vehicle(unit, vehicle,
-						r_string("You are missing permissions to play as an attack rotary wing aircraft"));
-			}
-		}
+		do_permission_check_helicopter(unit, vehicle);
+		return;
 	}
 	if (vehicle_type == "Plane")
 	{
-		if (is_attack_aircraft(vehicle_type))
-		{
-			if (configuration::use_slot_traits)
-			{
-				if (is_driver && !check_trait(unit, TRAIT_PLANE_PILOT))
-					kick_from_vehicle(unit, vehicle,
-						r_string(
-							"You must be on the fixed wings attack pilot slot to play this vehicle role"));
-				if (!is_driver && !check_trait(unit, TRAIT_PLANE_CREW))
-					kick_from_vehicle(unit, vehicle,
-						r_string(
-							"You must be on the fixed wing attack crew slot to play this vehicle role"));
-			}
-			else
-			{
-				if (!check_whitelist(unit, std::vector{ WHITELIST_ATTACK_AIRCRAFT, WHITELIST_FIXED_WING }, std::vector<int> {}))
-					kick_from_vehicle(unit, vehicle,
-						r_string("You are missing permissions to play as an attack fixed wing aircraft"));
-			}
-		}
+		
+		do_permission_check_plane(unit, vehicle);
+		return;
 	}
 	if (vehicle_type == "TrackedAPC" || vehicle_type == "Tank" || vehicle_type == "WheeledAPC")
 	{
-		if (is_attack_aircraft(vehicle_type))
+		do_permission_check_tank(unit, vehicle);
+	}
+}
+
+void tf47::prism::whitelist::do_permission_check_tank(object& unit, object& vehicle)
+{
+	const r_string player_uid = intercept::sqf::get_player_uid(unit);
+	
+	if (configuration::configuration::get().use_slot_traits)
+	{
+		if (!check_trait(unit, TRAIT_TANK_CREW))
 		{
-			if (configuration::use_slot_traits)
+			kick_from_vehicle(unit, vehicle, r_string("You need to be on a tank crew slot to use this vehicle"));
+		}
+	}
+	else
+	{
+		if (!check_whitelist_simple(player_uid, std::vector{WHITELIST_TANK}) || 
+			!check_whitelist_simple(player_uid, std::vector{WHITELIST_ADMINISTRATOR, WHITELIST_MODERATOR}))
+		{
+			kick_from_vehicle(unit, vehicle, r_string("You are not whitelisted for tank vehicles"));
+		}
+	}
+}
+
+void tf47::prism::whitelist::do_permission_check_helicopter(object& unit, object& vehicle)
+{
+	r_string classname = intercept::sqf::type_of(vehicle);
+	const r_string player_uid = intercept::sqf::get_player_uid(unit);
+	const bool is_driver = intercept::sqf::driver(unit) == unit;
+
+	if (configuration::configuration::get().use_slot_traits)
+	{
+		if (is_attack_aircraft(classname)) 
+		{
+			if (is_driver && !check_trait(unit, TRAIT_HELICOPTER_ATTACK_PILOT))
 			{
-				if (check_trait(unit, TRAIT_TANK_CREW))
-					kick_from_vehicle(unit, vehicle,
-						r_string(
-							"You must be on the crew slot to play this vehicle role"));
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a attack helicopter pilot slot to use this vehicle"));
+				return;
 			}
-			else
+			if (!check_trait(unit, TRAIT_HELICOPTER_ATTACK_CREW))
 			{
-				if (!check_whitelist(unit, std::vector{ WHITELIST_TANK}, std::vector<int> {}))
-					kick_from_vehicle(unit, vehicle,
-						r_string("You are missing permissions to play as a tank"));
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a attack helicopter crew slot to use this vehicle"));
+				return;
 			}
 		}
+		else //not attack aircraft
+		{
+			if (is_driver && !check_trait(unit, TRAIT_HELICOPTER_PILOT)) 
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a helicopter pilot slot to use this vehicle"));
+				return;
+			} 
+			if (!check_trait(unit, TRAIT_HELICOPTER_CREW))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a helicopter crew slot to use this vehicle"));
+				return;
+			}
+		}	
+	}
+	else
+	{
+		if (is_attack_aircraft(classname)) 
+		{
+			if (!check_whitelist_simple(player_uid, std::vector { WHITELIST_ADMINISTRATOR, WHITELIST_MODERATOR }) || 
+				!check_whitelist_strict(player_uid, std::vector { WHITELIST_ROTARY_WING, WHITELIST_ATTACK_AIRCRAFT }))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You are not whitelisted for rotory wing attack aircraft"));
+				return;
+			}
+		}
+		else 
+		{
+			if (!check_whitelist_simple(player_uid, std::vector { WHITELIST_ADMINISTRATOR, WHITELIST_MODERATOR, WHITELIST_ROTARY_WING }))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You are not whitelisted for rotory wing attack aircraft"));
+				return;
+			}
+		}
+	}
+}
+
+void tf47::prism::whitelist::do_permission_check_plane(object& unit, object& vehicle)
+{
+	r_string classname = intercept::sqf::type_of(vehicle);
+	const r_string player_uid = intercept::sqf::get_player_uid(unit);
+	const bool is_driver = intercept::sqf::driver(unit) == unit;
+
+	if (configuration::configuration::get().use_slot_traits)
+	{
+		if (is_attack_aircraft(classname))
+		{
+			if (is_driver && !check_trait(unit, TRAIT_PLANE_ATTACK_PILOT))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a attack plane pilot slot to use this vehicle"));
+				return;
+			}
+			if (!check_trait(unit, TRAIT_PLANE_ATTACK_CREW))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a attack plane crew slot to use this vehicle"));
+				return;
+			}
+		}
+		else //not attack aircraft
+		{
+			if (is_driver && !check_trait(unit, TRAIT_PLANE_PILOT))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a plane pilot slot to use this vehicle"));
+				return;
+			}
+			if (!check_trait(unit, TRAIT_PLANE_CREW))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You need to be on a plane crew slot to use this vehicle"));
+				return;
+			}
+		}
+	}
+	else
+	{
+		if (is_attack_aircraft(classname))
+		{
+			if (!check_whitelist_simple(player_uid, std::vector { WHITELIST_ADMINISTRATOR, WHITELIST_MODERATOR }) ||
+				!check_whitelist_strict(player_uid, std::vector { WHITELIST_FIXED_WING, WHITELIST_ATTACK_AIRCRAFT }))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You are not whitelisted for fixed wing attack aircraft"));
+				return;
+			}
+		}
+		else
+		{
+			if (!check_whitelist_simple(player_uid, std::vector { WHITELIST_ADMINISTRATOR, WHITELIST_MODERATOR, WHITELIST_FIXED_WING }))
+			{
+				kick_from_vehicle(unit, vehicle, r_string("You are not whitelisted for fixed wing attack aircraft"));
+				return;
+			}
+		}
+	}
+}
+
+void tf47::prism::whitelist::do_permission_check_uav(object& unit, object& uav)
+{
+}
+
+bool tf47::prism::whitelist::check_whitelist_strict(r_string player_uid, std::vector<int>& required_permissions)
+{
+	if (player_permissions.exist(player_uid))
+	{
+		auto permissions = player_permissions.get(player_uid);
+		
+		for (auto required_permission : required_permissions)
+		{
+			if (std::find(permissions->begin(), permissions->end(), required_permission) == permissions->end())
+				return false;
+		}
+	}
+	else
+	{
+		std::stringstream ss;
+		ss << "Cannot get whitelist from cached map for player uid: " << player_uid;
+		write_log(ss.str(), logger::Warning);
+		return false;
 	}
 	return true;
 }
 
-bool tf47::prism::whitelist::check_whitelist(r_string player_uid, std::vector<int>& required_permissions, std::vector<int>& minimal_permissions)
+bool tf47::prism::whitelist::check_whitelist_simple(const r_string player_uid, std::vector<int>& minimal_permissions)
 {
-	player_permission_lock.lock();
-	if (whitelist::player_permissions.count(player_uid) != 0) 
+	if (player_permissions.exist(player_uid))
 	{
-		auto permissions = player_permissions.at(player_uid);
-		
-		for (auto required_permission: required_permissions)
-		{
-			if (std::find(permissions.begin(), permissions.end(), required_permission) == permissions.end())
-				return false;
-		}
+		auto permissions = player_permissions.get(player_uid);
 
-		for (auto minimal_permission: minimal_permissions)
+		for (auto required_permission : minimal_permissions)
 		{
-			if (std::find(permissions.begin(), permissions.end(), minimal_permission) == permissions.end())
+			if (std::find(permissions->begin(), permissions->end(), required_permission) != permissions->end())
 				return true;
 		}
-		return true;
 	}
-	else 
+	else
 	{
 		std::stringstream ss;
 		ss << "Cannot get whitelist from cached map for player uid: " << player_uid;
-		logger::write_log(ss.str(), logger::Warning);
+		write_log(ss.str(), logger::Warning);
 		return false;
 	}
-	
+	return false;
 }
 
 bool tf47::prism::whitelist::check_trait(object& unit, const std::string required_trait)
@@ -124,16 +230,14 @@ bool tf47::prism::whitelist::kick_from_vehicle(object& player, object& vehicle, 
 	if (!is_kick_allowed(player))
 		return false;
 
-	if (!configuration::advanced_notifications) {
-
-		
+	if (!configuration::configuration::get().advanced_notifications) 
+	{	
 		const auto params_hint = auto_array({ game_value("You are not allowed to use this vehicle") });
-
 		intercept::sqf::remote_exec(params_hint, "hint", player, false);
-		
-		
-	} else {
-		const auto params_notification = auto_array({ r_string("TF47NotificationNotWhitelisted"), { message } });
+	}
+	else 
+	{
+		const auto params_notification = auto_array({ game_value("TF47NotificationNotWhitelisted"), game_value(auto_array({ game_value(message) } ))});
 		intercept::sqf::remote_exec(params_notification, "BIS_fnc_showNotification", player, false);
 	}
 
@@ -146,7 +250,7 @@ bool tf47::prism::whitelist::kick_to_lobby(object player)
 {
 	intercept::client::invoker_lock lock;
 
-	if (!configuration::advanced_notifications) {
+	if (!configuration::configuration::get().advanced_notifications) {
 		const auto params = auto_array({ game_value("end1"), game_value("false") });
 		intercept::sqf::remote_exec(params, "BIS_fnc_endMission", player, false);
 	} else {
@@ -159,19 +263,19 @@ bool tf47::prism::whitelist::kick_to_lobby(object player)
 
 bool tf47::prism::whitelist::is_kick_allowed(object& vehicle)
 {
-	return intercept::sqf::is_kind_of(vehicle, "ParachuteBase") || intercept::sqf::speed(vehicle) > 5 || !intercept::sqf::is_touching_ground(vehicle);
+	return !intercept::sqf::is_kind_of(vehicle, "ParachuteBase") || intercept::sqf::speed(vehicle) < 5 || intercept::sqf::is_touching_ground(vehicle);
 }
 
 bool tf47::prism::whitelist::is_attack_aircraft(r_string& classname)
 {
-	return configuration::use_attack_aircraft_whitelist && std::find(attack_aircraft.begin(), attack_aircraft.end(),
+	return configuration::configuration::get().use_attack_aircraft_whitelist && std::find(attack_aircraft.begin(), attack_aircraft.end(),
 		classname) != attack_aircraft.end();
 }
 
 bool tf47::prism::whitelist::init_slot_traits(object& unit)
 {
 	const r_string slot_name = intercept::sqf::str(unit);
-	auto slot = slots.at(slot_name);
+	auto slot = slots.get(slot_name);
 
 	intercept::sqf::set_unit_trait(unit, TRAIT_CCT, false, true);
 	intercept::sqf::set_unit_trait(unit, TRAIT_HELICOPTER_ATTACK_PILOT, false, true);
@@ -181,9 +285,10 @@ bool tf47::prism::whitelist::init_slot_traits(object& unit)
 	intercept::sqf::set_unit_trait(unit, TRAIT_PLANE_CREW, false, true);
 	intercept::sqf::set_unit_trait(unit, TRAIT_TANK_CREW, false, true);
 	intercept::sqf::set_unit_trait(unit, TRAIT_UAV, false, true);
-	intercept::sqf::set_unit_trait(unit, "TF47_WHITELIST_IS_PLANE_CREW", false, true);
+	intercept::sqf::set_unit_trait(unit, TRAIT_PLANE_ATTACK_PILOT, false, true);
+	intercept::sqf::set_unit_trait(unit, TRAIT_PLANE_ATTACK_CREW, false, true);
 
-	for (const r_string trait : slot.traits)
+	for (const r_string trait : slot->traits)
 	{
 		intercept::sqf::set_unit_trait(unit, trait, true, true);
 	}
@@ -192,12 +297,53 @@ bool tf47::prism::whitelist::init_slot_traits(object& unit)
 
 bool tf47::prism::whitelist::init_player_scripts(object& unit)
 {
+	if (configuration::configuration::get().use_slot_traits) return true;
+	/*
+	__SQF(
+		[{
+			addMissionEventHandler ["PlayerViewChanged", { [_this] remoteExec ["TF47WhitelistPlayerViewChanged", 2] }];
+		}] remoteExec ["call", _this];
+	).capture(unit);*/
+
+	__SQF(
+		[{
+			if (! (player getVariable ["TF47WhitelistEventhandlerInitialized", false])) then {
+
+				player addEventHandler ["GetInMan", {
+					[_this] remoteExec ["TF47WhitelistGetInMan", 2];
+				}];
+				player addEventHandler ["SeatSwitchedMan", {
+					[_this] remoteExec ["TF47WhitelistSeatSwitchedMan", 2];
+				}];
+				player setVariable ["TF47WhitelistEventhandlerInitialized", true];
+				diag_log "[TF47_Prism] (Whitelist) Client Eventhandler initialized";
+			};
+		}] remoteExec["bis_fnc_call", _this];
+	).capture(unit);
+
+	/*
+	const auto get_in_eventhandler = intercept::client::addEventHandler<intercept::client::eventhandlers_object::GetInMan>(
+		unit, [](object vehicle, intercept::client::get_in_position position, object unit, rv_turret_path turret_path)
+		{
+			do_permission_check(unit, vehicle);
+		});
+	const auto seat_switched_eventhandler = intercept::client::addEventHandler<
+		intercept::client::eventhandlers_object::SeatSwitchedMan>
+		(unit, [](object vehicle, object unit1, object unit2)
+		{
+			do_permission_check(unit1, vehicle);
+		});
+
+	unit_whitelist_eventhandler.push_back(get_in_eventhandler);
+	unit_whitelist_eventhandler.push_back(seat_switched_eventhandler);*/
+
+	
 	return true;
 }
 
 bool tf47::prism::whitelist::init_load_whitelist(r_string& player_uid, r_string& player_name)
 {
-	std::thread([&player_uid, player_name]()
+	std::thread([player_uid, player_name]()
 		{
 			api_connector::ApiClient client;
 			if (! client.check_user_exist(player_uid.c_str()))
@@ -216,8 +362,9 @@ bool tf47::prism::whitelist::init_load_whitelist(r_string& player_uid, r_string&
 bool tf47::prism::whitelist::handle_player_connected(r_string& player_uid, r_string& player_name)
 {
 	if (player_name == "__SERVER__") return false;
+	if (player_uid.empty()) return false;
 	if (player_name.empty()) return false;
-	if (player_name.find("HC") > player_name.size()) return false;
+	if (player_name.find("HC") <= player_name.size()) return false;
 	
 	std::stringstream ss;
 	ss << "Player " << player_name << " connected. Querying player whitelist ...";
@@ -227,15 +374,13 @@ bool tf47::prism::whitelist::handle_player_connected(r_string& player_uid, r_str
 	return true;
 }
 
-bool tf47::prism::whitelist::reload_whitelist(r_string& player_uid)
+bool tf47::prism::whitelist::reload_whitelist(r_string player_uid)
 {
 	std::thread([player_uid]()
 		{
 			api_connector::ApiClient client;
 			auto permissions = client.get_whitelist(player_uid.c_str());
-			player_permission_lock.lock();
-			player_permissions.insert_or_assign(player_uid, permissions);
-			player_permission_lock.unlock();
+			player_permissions.insert(std::pair{ player_uid, permissions }, true);
 		}).detach();
 	return true;
 }
@@ -243,7 +388,7 @@ bool tf47::prism::whitelist::reload_whitelist(r_string& player_uid)
 game_value handle_cmd_register_slot_whitelist(game_state& gs, game_value_parameter left_args, game_value_parameter right_args)
 {
 	const r_string slot_name = left_args;
-	if (tf47::prism::whitelist::slots.count(slot_name) == 0)
+	if (! tf47::prism::whitelist::slots.exist(slot_name))
 	{
 		write_log("Cannot find the slot name in the pre generated list of all playable slots", tf47::prism::logger::Error);
 		gs.set_script_error(game_state::game_evaluator::evaluator_error_type::foreign, r_string("slot does not exist"));
@@ -262,9 +407,9 @@ game_value handle_cmd_register_slot_whitelist(game_state& gs, game_value_paramet
 		minimal_permissions.push_back(minimal_permission);
 	}
 
-	auto slot = tf47::prism::whitelist::slots.at(slot_name);
-	slot.minimal_required_permission = minimal_permissions;
-	slot.strict_required_permission = required_permissions;
+	auto slot = tf47::prism::whitelist::slots.get(slot_name);
+	slot->minimal_required_permission = minimal_permissions;
+	slot->strict_required_permission = required_permissions;
 	
 	std::stringstream ss;
 	ss << "Slot whitelist " << slot_name << "has been registered for the slot whitelist";
@@ -276,7 +421,7 @@ game_value handle_cmd_register_slot_whitelist(game_state& gs, game_value_paramet
 game_value handle_cmd_whitelist_register_slot_traits(game_state& gs, game_value_parameter left_args, game_value_parameter right_args)
 {
 	const r_string slot_name = left_args;
-	if (tf47::prism::whitelist::slots.count(slot_name) == 0)
+	if (!tf47::prism::whitelist::slots.exist(slot_name) == 0)
 	{
 		write_log("Cannot find the slot name in the pre generated list of all playable slots", tf47::prism::logger::Error);
 		gs.set_script_error(game_state::game_evaluator::evaluator_error_type::foreign, r_string("slot does not exist"));
@@ -289,8 +434,8 @@ game_value handle_cmd_whitelist_register_slot_traits(game_state& gs, game_value_
 		traits.push_back(element);
 	}
 
-	auto slot = tf47::prism::whitelist::slots.at(slot_name);
-	slot.traits = traits;
+	auto slot = tf47::prism::whitelist::slots.get(slot_name);
+	slot->traits = traits;
 
 	return true;
 }
@@ -331,6 +476,37 @@ game_value handle_cmd_whitelist_register_attack_aircraft(game_state& gs, game_va
 	return true;
 }
 
+game_value handle_cmd_whitelist_player_view_changed(game_state& gs, game_value_parameter right_args)
+{
+	//object oldBody, object newBody, object vehicleIn, object oldCameraOn, object newCameraOn, object UAV
+	object old_body = right_args[0];
+	object new_body = right_args[1];
+	object vehicle_in = right_args[2];
+	object old_camera_on = right_args[3];
+	object new_camera_on = right_args[4];
+	object uav = right_args[5];
+	
+	tf47::prism::whitelist::do_permission_check(new_body, vehicle_in);
+	return true;
+}
+
+game_value handle_cmd_whitelist_get_in_man(game_state& gs, game_value_parameter right_args)
+{
+	object unit = right_args[0];
+	object vehicle = right_args[2];
+
+	tf47::prism::whitelist::do_permission_check(unit, vehicle);
+	return true;
+}
+
+game_value handle_cmd_whitelist_seat_switched_man(game_state& gs, game_value_parameter right_args)
+{
+	object unit = right_args[0];
+	object vehicle = right_args[2];
+
+	tf47::prism::whitelist::do_permission_check(unit, vehicle);
+	return true;
+}
 
 void tf47::prism::whitelist::initialize_commands()
 {
@@ -346,13 +522,23 @@ void tf47::prism::whitelist::initialize_commands()
 	static auto cmd_whitelist_register_slot_traits = intercept::client::host::register_sqf_command(
 		"TF47WhitelistRegisterSlotTraits", "", 
 		handle_cmd_whitelist_register_slot_traits, game_data_type::BOOL, game_data_type::STRING, game_data_type::ARRAY);
+	static auto cmd_whitelist_player_view_changed = intercept::client::host::register_sqf_command(
+		"TF47WhitelistPlayerViewChanged", "",
+		handle_cmd_whitelist_player_view_changed, game_data_type::BOOL, game_data_type::ARRAY);
+	static auto cmd_whitelist_get_in_man = intercept::client::host::register_sqf_command(
+		"TF47WhitelistGetInMan", "",
+		handle_cmd_whitelist_get_in_man, game_data_type::BOOL, game_data_type::ARRAY);
+	static auto cmd_whitelist_seat_switched_man = intercept::client::host::register_sqf_command(
+		"TF47WhitelistSeatSwitchedMan", "",
+		handle_cmd_whitelist_seat_switched_man, game_data_type::BOOL, game_data_type::ARRAY
+	);
 }
 
 
 
 void tf47::prism::whitelist::start_whitelist()
 {
-	if (!configuration::use_whitelist) return;
+	if (!configuration::configuration::get().use_whitelist) return;
 
 	slots.clear();
 	player_permissions.clear();
@@ -363,7 +549,7 @@ void tf47::prism::whitelist::start_whitelist()
 		auto slot = Slot();
 		slot.slot_name = intercept::sqf::str(unit);
 		slot.slot_whitelist_enabled = false;
-		slots.insert_or_assign(slot.slot_name, slot);
+		slots.insert(std::pair{ slot.slot_name, slot }, true);
 	}
 
 	__SQF(
@@ -383,14 +569,14 @@ void tf47::prism::whitelist::start_whitelist()
 		{
 			handle_player_connected(uid, name);
 		});
-
+	/*
 	static auto player_view_changed_event_handler_handle = intercept::client::addMissionEventHandler<intercept::client::eventhandlers_mission::PlayerViewChanged>([](object oldBody, object newBody, object vehicleIn, object oldCameraOn, object newCameraOn, object UAV)
 		{
 			if (vehicleIn.is_null()) return;
 			do_permission_check(newBody, vehicleIn);
 		});
-
-	prism::whitelist::start_whitelist_reload();
+		*/
+	start_whitelist_reload();
 }
 
 void tf47::prism::whitelist::start_whitelist_reload()
@@ -398,24 +584,40 @@ void tf47::prism::whitelist::start_whitelist_reload()
 	continue_whitelist_reload_loop = true;
 	whitelist_reload_thread = new std::thread([]()
 		{
-			api_connector::ApiClient client;
-			while (continue_whitelist_reload_loop)
+			try 
 			{
-				player_permission_lock.lock();
-				for (auto [player_uid, permissions] : player_permissions)
+				api_connector::ApiClient client;
+
+				auto time_last_update = std::chrono::high_resolution_clock::now();
+
+				while (continue_whitelist_reload_loop)
 				{
-					const auto res = client.get_whitelist(player_uid.c_str());
-					permissions = res;
+
+					const auto time_delta = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - time_last_update);
+					if (time_delta.count() > 60000) {
+						auto permissions = player_permissions.get_vector();
+						for (size_t i = 0; i < permissions.size(); i++)
+						{
+							const auto permissions_response = client.get_whitelist(permissions[i].first.c_str());
+							permissions[i].second = permissions_response;
+						}
+						time_last_update = std::chrono::high_resolution_clock::now();
+					}
+
+					std::this_thread::sleep_for(std::chrono::seconds(1));
 				}
-				player_permission_lock.unlock();
-				std::this_thread::sleep_for(std::chrono::seconds(60));
+			}
+			catch (...)
+			{
+				std::cout << "Main whitelist reload thread malfunction...";	
 			}
 		});
-	whitelist_reload_thread->detach();
+	//whitelist_reload_thread->detach();
 }
 
 void tf47::prism::whitelist::stop_whitelist_reload()
 {
 	continue_whitelist_reload_loop = false;
-	whitelist_reload_thread->join();
+	if (whitelist_reload_thread->joinable())
+		whitelist_reload_thread->join();
 }

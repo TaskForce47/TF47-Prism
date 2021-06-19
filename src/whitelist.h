@@ -27,10 +27,12 @@
 #define TRAIT_HELICOPTER_ATTACK_PILOT "TF47_WHITELIST_IS_ATTACK_HELICOPTER_PILOT"
 #define TRAIT_UAV "TF47_WHITELIST_IS_UAV"
 #define TRAIT_CCT "TF47_WHITELIST_IS_CCT"
-#define TRAIT_ATTACK_HELICOPTER_CREW "TF47_WHITELIST_IS_ATTACK_HELICOPTER_CREW"
+#define TRAIT_HELICOPTER_ATTACK_CREW "TF47_WHITELIST_IS_ATTACK_HELICOPTER_CREW"
 #define TRAIT_HELICOPTER_CREW "TF47_WHITELIST_IS_HELICOPTER_CREW"
 #define TRAIT_PLANE_PILOT "TF47_WHITELIST_IS_PLANE_PILOT"
 #define TRAIT_PLANE_CREW "TF47_WHITELIST_IS_PLANE_CREW"
+#define TRAIT_PLANE_ATTACK_PILOT "TF47_WHITELIST_IS_ATTACK_PLANE_PILOT"
+#define TRAIT_PLANE_ATTACK_CREW "TF47_WHITELIST_IS_ATTACK_PLANE_CREW"
 
 namespace tf47::prism::whitelist
 {
@@ -43,18 +45,23 @@ namespace tf47::prism::whitelist
 		bool slot_whitelist_enabled;
 	};
 
-	static bool continue_whitelist_reload_loop = false;
+	static bool continue_whitelist_reload_loop;
 	static std::thread* whitelist_reload_thread;
+
+	static std::vector<intercept::client::EHIdentifierHandle> unit_whitelist_eventhandler;
 	
 	static std::vector<r_string> attack_aircraft;
-	static std::unordered_map<r_string, Slot> slots;
+	static helper::thread_safe_vector<r_string, Slot> slots;
+	static helper::thread_safe_vector<r_string, std::vector<int>> player_permissions;
 
-	static std::mutex player_permission_lock;
-	static std::unordered_map<r_string, std::vector<int>> player_permissions;
-
-	bool do_permission_check(object& unit, object& vehicle);
+	void do_permission_check(object& unit, object& vehicle);
+	void do_permission_check_tank(object& unit, object& vehicle);
+	void do_permission_check_helicopter(object& unit, object& vehicle);
+	void do_permission_check_plane(object& unit, object& vehicle);
+	void do_permission_check_uav(object& unit, object& uav);
 	
-	bool check_whitelist(r_string player_uid, std::vector<int>& required_permissions, std::vector<int>& minimal_permissions);
+	bool check_whitelist_strict(r_string player_uid, std::vector<int>& required_permissions);
+	bool check_whitelist_simple(r_string player_uid, std::vector<int>& minimal_permissions);
 	bool check_trait(object& unit, const std::string required_trait);
 
 	bool kick_from_vehicle(object& player, object& vehicle, r_string message);
@@ -68,7 +75,7 @@ namespace tf47::prism::whitelist
 	bool init_load_whitelist(r_string& player_uid, r_string& player_name);
 	
 	bool handle_player_connected(r_string& player_uid, r_string& player_name);
-	bool reload_whitelist(r_string& player_uid);
+	bool reload_whitelist(r_string player_uid);
 	
 	void initialize_commands();
 	void start_whitelist();
