@@ -21,25 +21,9 @@ namespace tf47::prism::configuration
 		int session_id;
 		bool session_started;
 
-
-		bool tf47_echelon_loaded;
-
-		bool use_whitelist;
-		bool use_slot_traits;
-		bool use_slot_whitelist;
-		bool use_attack_aircraft_whitelist;
-
-		bool use_ticketsystem;
-
-		bool advanced_notifications;
-
 		int mission_id;
 		std::string mission_type;
 
 		void load_configuration();
-
-		void load_mission_config();
-
-		void log_loaded_settings();
 	};
 }

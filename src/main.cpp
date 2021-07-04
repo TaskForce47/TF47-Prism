@@ -4,20 +4,61 @@
 #include <intercept.hpp>
 #include <string>
 #include "logger.h"
-#include "whitelist.h"
-#include "ticketsystem.h"
+#include "helper.h"
 #include "configuration.h"
 #include "api_connector.h"
 
 using namespace intercept;
 using namespace tf47::prism;
 
+helper::thread_safe_queue<std::tuple<code, std::string, std::vector<int>>> permission_query_callback_queue;
 
-int intercept::api_version() {
-    return INTERCEPT_SDK_API_VERSION;
+game_value handle_cmd_createPlayer(game_state& gs, game_value_parameter right_args)
+{
+    std::string player_uid = right_args[0];
+    std::string player_name = right_args[1];
+	
+    std::thread([player_uid, player_name]
+        {
+            api_connector::ApiClient client;
+            if (!client.check_user_exist(player_uid))
+            {
+                client.create_user(player_uid, player_name);
+            }
+        }).detach();
+	
+    return true;
 }
 
-void intercept::register_interfaces() {}
+game_value handle_cmd_update_ticket_count(game_state& gs, game_value_parameter right_args)
+{
+    int ticket_change = right_args[0];
+    int ticket_count_new = right_args[1];
+    std::string message = right_args[2];
+    std::string player_uid = right_args[3];
+    std::thread([player_uid, message, ticket_change, ticket_count_new]
+        {
+            api_connector::ApiClient client;
+            client.update_ticket_count(player_uid, message, ticket_change, ticket_count_new);
+        }).detach();
+
+    return true;
+}
+
+game_value handle_cmd_get_whitelist(game_state& gs, game_value_parameter right_args)
+{
+    std::string player_uid = right_args[0];
+	const code callback = right_args[1];
+
+	std::thread([player_uid, callback]
+		{
+            api_connector::ApiClient client;
+            auto permissions = client.get_whitelist(player_uid);
+            permission_query_callback_queue.push({ callback, player_uid, permissions });
+        }).detach();
+
+    return true;
+}
 
 void kill_mission(const std::string error_message)
 {
@@ -28,72 +69,37 @@ void kill_mission(const std::string error_message)
     );
 }
 
+int intercept::api_version() {
+    return INTERCEPT_SDK_API_VERSION;
+}
+
+void intercept::register_interfaces() {}
 
 void intercept::pre_init()
 {
-	try {
+    try {
         configuration::configuration::get().load_configuration();
-	}
-	catch (std::filesystem::filesystem_error& error)
-	{
+    }
+    catch (std::filesystem::filesystem_error& error)
+    {
         write_log(error.what(), logger::Error);
         const std::string error_message{ "Could not parse settings file... Maybe it does not exist?" };
         kill_mission(error_message);
-	}
-    configuration::configuration::get().load_mission_config();
-    configuration::configuration::get().log_loaded_settings();
-	
-	sqf::set_variable(sqf::mission_namespace(), "TF47Prism", true);
+    }
+
+    sqf::set_variable(sqf::mission_namespace(), "TF47Prism", true);
 }
 
 void intercept::pre_start()
 {
-	whitelist::initialize_commands();
-    ticketsystem::initialize_commands();
+    static auto cmd_handle_createPlayer = intercept::client::host::register_sqf_command("TF47PrismCreatePlayer", "", handle_cmd_createPlayer, game_data_type::BOOL, game_data_type::ARRAY);
+    static auto cmd_handle_update_ticket_count = intercept::client::host::register_sqf_command("TF47PrismUpdateTicketCount", "", handle_cmd_update_ticket_count, game_data_type::BOOL, game_data_type::ARRAY);
+    static auto cmd_handle_get_whitelist = intercept::client::host::register_sqf_command("TF47PrismGetWhitelist", "", handle_cmd_get_whitelist, game_data_type::BOOL, game_data_type::ARRAY);
 }
 
 void intercept::post_init()
 {
-    api_connector::ApiClient client;
 
-    try {
-        client.create_session(sqf::world_name());
-    }
-	catch (std::exception& ex)
-    {
-        write_log(ex.what(), logger::Error);
-        const std::string error_message{ "Could not create a session... terminating..." };
-        kill_mission(error_message);
-    }
-
-    sqf::set_variable(sqf::mission_namespace(),"TF47SessionId", configuration::configuration::get().session_id, true);
-	
-    whitelist::start_whitelist();
-    ticketsystem::start_ticketsystem();
-    configuration::configuration::get().session_started = true;
-
-    if (sqf::get_variable(sqf::mission_namespace(), "TF47Echelon", false))
-    {
-        configuration::configuration::get().tf47_echelon_loaded = true;
-    }
-    else
-    {
-        static auto player_connected_eventhandler = intercept::client::addMissionEventHandler<client::eventhandlers_mission::PlayerConnected>([](int id, types::r_string uid, types::r_string name, bool jip, int owner)
-            {
-                std::thread([name, uid]()
-                    {
-                        if (name == "__SERVER__") return false;
-                        if (uid.empty()) return false;
-                        if (name.empty()) return false;
-                        if (name.find("HC") <= name.size()) return false;
-
-                        api_connector::ApiClient client;
-                        if (!client.check_user_exist(uid.c_str()))
-                            client.create_user(uid.c_str(), name.c_str());
-
-                    }).detach();
-            });
-    }
 }
 
 void intercept::mission_ended()
@@ -106,14 +112,17 @@ void intercept::mission_ended()
     }
 }
 
+void intercept::on_frame()
+{
+    while(!permission_query_callback_queue.empty())
+    {
+        auto item = permission_query_callback_queue.pop();
+        sqf::call(std::get<0>(item), auto_array({game_value(std::get<1>(item)), game_value(std::get<2>(item))}));
+    }
+}
+
+
 void intercept::handle_unload()
 {
-    api_connector::ApiClient client;
-    if (configuration::configuration::get().session_started)
-    {
-        client.end_session();
-        configuration::configuration::get().session_started = false;
-    }
-    whitelist::stop_whitelist_reload();
-    //whitelist::stop_whitelist_reload();
+
 }
