@@ -113,10 +113,10 @@ void tf47::prism::api_connector::ApiClient::update_ticket_count(std::string play
 	route << configuration::configuration::get().hostname << "/api/ticket/" << configuration::configuration::get().session_id;
 
 	json j;
-	j["PlayerUid"] = player_uid;
-	j["TicketChange"] = ticket_change;
-	j["TicketCountNew"] = ticket_count_new;
-	j["Message"] = message;
+	j["playerUid"] = player_uid;
+	j["ticketChange"] = ticket_change;
+	j["ticketCountNew"] = ticket_count_new;
+	j["message"] = message;
 	
 	const auto response = cpr::Post(cpr::Url{ route.str() }, cpr::Header{
 			{ "Content-Type", "application/json" },
