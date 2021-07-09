@@ -51,11 +51,11 @@ void tf47::prism::api_connector::ApiClient::create_user(std::string player_uid, 
 	}
 }
 
-void tf47::prism::api_connector::ApiClient::create_session(std::string world_name)
+void tf47::prism::api_connector::ApiClient::create_session(std::string world_name, int mission_id, std::string mission_type)
 {
 	json j;
-	j["missionId"] = configuration::configuration::get().mission_id;
-	j["missionType"] = configuration::configuration::get().mission_type;
+	j["missionId"] = mission_id;
+	j["missionType"] = mission_type;
 	j["worldName"] = world_name;
 
 	std::stringstream route;
@@ -76,6 +76,7 @@ void tf47::prism::api_connector::ApiClient::create_session(std::string world_nam
 	else 
 	{
 		std::stringstream ss;
+		configuration::configuration::get().session_id = -1;
 		ss << "Failed to create new session! [Status code: " << response.status_code << " ] [Message: " << response.text << " ] [Payload: " << j.dump() << "] [Route: " << route.str() << "]";
 		throw std::exception(ss.str().c_str());
 	}

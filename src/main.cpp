@@ -60,6 +60,22 @@ game_value handle_cmd_get_whitelist(game_state& gs, game_value_parameter right_a
     return true;
 }
 
+game_value handle_cmd_create_session(game_state& gs, game_value_parameter right_args)
+{
+	const int mission_id = right_args[0];
+	const std::string mission_type = right_args[1];
+    api_connector::ApiClient client;
+    client.create_session(intercept::sqf::world_name(), mission_id, mission_type);
+    return configuration::configuration::get().session_id;
+}
+
+game_value handle_cmd_end_session(game_state& gs)
+{
+    api_connector::ApiClient client;
+    client.end_session();
+    return true;
+}
+
 void kill_mission(const std::string error_message)
 {
     write_log(error_message, logger::Error);
@@ -95,6 +111,8 @@ void intercept::pre_start()
     static auto cmd_handle_createPlayer = intercept::client::host::register_sqf_command("TF47PrismCreatePlayer", "", handle_cmd_createPlayer, game_data_type::BOOL, game_data_type::ARRAY);
     static auto cmd_handle_update_ticket_count = intercept::client::host::register_sqf_command("TF47PrismUpdateTicketCount", "", handle_cmd_update_ticket_count, game_data_type::BOOL, game_data_type::ARRAY);
     static auto cmd_handle_get_whitelist = intercept::client::host::register_sqf_command("TF47PrismGetWhitelist", "", handle_cmd_get_whitelist, game_data_type::BOOL, game_data_type::ARRAY);
+    static auto cmd_handle_create_session = intercept::client::host::register_sqf_command("TF47PrismCreateSession", "", handle_cmd_create_session, game_data_type::SCALAR, game_data_type::ARRAY);
+    static auto cmd_handle_end_session = intercept::client::host::register_sqf_command("TF47PrismEndSession", "", handle_cmd_end_session, game_data_type::BOOL);
 }
 
 void intercept::post_init()
@@ -124,5 +142,4 @@ void intercept::on_frame()
 
 void intercept::handle_unload()
 {
-
 }

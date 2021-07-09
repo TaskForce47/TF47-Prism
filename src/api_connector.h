@@ -19,7 +19,7 @@ namespace tf47::prism::api_connector
 
 		bool check_user_exist(std::string player_uid);
 		void create_user(std::string player_uid, std::string player_name);
-		void create_session(std::string world_name);
+		void create_session(std::string world_name, int mission_id, std::string mission_type);
 		void end_session();
 		void update_ticket_count(std::string player_uid, std::string message, int ticket_change, int ticket_count_new);
 		std::vector<int> get_whitelist(std::string playerUid);
