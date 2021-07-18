@@ -27,6 +27,7 @@ bool tf47::prism::api_connector::ApiClient::check_user_exist(std::string player_
 		logger::write_log(ss.str(), logger::Warning);
 		return false;
 	}
+	return true;
 }
 
 void tf47::prism::api_connector::ApiClient::create_user(std::string player_uid, std::string player_name)
