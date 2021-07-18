@@ -71,7 +71,7 @@ game_value handle_cmd_update_ticket_count(game_state& gs, game_value_parameter r
 game_value handle_cmd_get_whitelist(game_state& gs, game_value_parameter right_args)
 {
     std::string player_uid = right_args[0];
-	const code callback = right_args[1];
+	code callback = right_args[1];
 
 	std::thread([player_uid, callback]
 		{
