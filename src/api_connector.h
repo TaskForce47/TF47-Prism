@@ -1,9 +1,10 @@
 #pragma once
 
-#include <cpr/cpr.h>
-#include <nlohmann/json.hpp>
 #include "configuration.h"
 #include "logger.h"
+#include <cpr/cpr.h>
+#include <nlohmann/json.hpp>
+
 
 using json = nlohmann::json;
 

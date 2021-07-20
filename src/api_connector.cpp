@@ -132,11 +132,11 @@ void tf47::prism::api_connector::ApiClient::update_ticket_count(std::string play
 	}
 }
 
-std::vector<int> tf47::prism::api_connector::ApiClient::get_whitelist(std::string playerUid)
+std::vector<int> tf47::prism::api_connector::ApiClient::get_whitelist(std::string player_uid)
 {
 
 	std::stringstream route;
-	route << configuration::configuration::get().hostname << "/api/whitelist/user/" << playerUid;
+	route << configuration::configuration::get().hostname << "/api/whitelist/user/" << player_uid;
 
 	const auto response = cpr::Get(cpr::Url(route.str()), cpr::Header{
 			{ "Content-Type", "application/json" },
