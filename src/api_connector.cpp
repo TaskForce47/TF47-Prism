@@ -48,6 +48,7 @@ void tf47::prism::api_connector::ApiClient::create_user(std::string player_uid, 
 	{
 		std::stringstream ss;
 		ss << "Failed to get player from database! [Status code:  " << response.status_code << " ] [Message: " << response.text << " ] [Payload: " << j.dump() << "] [Route: " << route.str() << "]";
+		std::cout << "TF47-Prism:" << "create_user:" << ss.str(); 
 		logger::write_log(ss.str(), tf47::prism::logger::Warning);
 	}
 }
@@ -78,6 +79,7 @@ void tf47::prism::api_connector::ApiClient::create_session(std::string world_nam
 	{
 		std::stringstream ss;
 		configuration::configuration::get().session_id = -1;
+		std::cout << "TF47-Prism:" << "create_session:" << ss.str();
 		ss << "Failed to create new session! [Status code: " << response.status_code << " ] [Message: " << response.text << " ] [Payload: " << j.dump() << "] [Route: " << route.str() << "]";
 		throw std::exception(ss.str().c_str());
 	}
@@ -95,14 +97,11 @@ void tf47::prism::api_connector::ApiClient::end_session()
 	                               }, cpr::Timeout{ 1000 });
 
 	
-	if (response.status_code == 200) 
-	{
-		
-	}
-	else 
+	if (response.status_code != 200) 
 	{
 		std::stringstream ss;
 		ss << "Failed to stop session! [Status code: " << response.status_code << " ] [Message: " << response.text << " ] [Route: " << route.str() << "]";
+		std::cout << "TF47-Prism:" << "end_session:" << ss.str();
 		throw std::exception(ss.str().c_str());
 	}
 }
@@ -128,6 +127,7 @@ void tf47::prism::api_connector::ApiClient::update_ticket_count(std::string play
 	{
 		std::stringstream ss;
 		ss << "Failed to insert new ticket count to database! [Status code:  " << response.status_code << " ] [Message: " << response.text << " ] [Payload: " << j.dump() << "] [Route: " << route.str() << "]";
+		std::cout << "TF47-Prism:" << "update_ticket_count:"<< ss.str();
 		write_log(ss.str(), tf47::prism::logger::Warning);
 	}
 }
@@ -150,12 +150,23 @@ std::vector<int> tf47::prism::api_connector::ApiClient::get_whitelist(std::strin
 		throw ss.str();
 	}
 
-	json resJ = json::parse(response.text);
+	json resJ;
 	std::vector<int> whitelists;
-
-	for (const auto& item : resJ["whitelistings"])
+	try 
 	{
-		whitelists.push_back(item["whitelistId"]);
+		resJ = json::parse(response.text);
+		for (const auto& item : resJ["whitelistings"])
+		{
+			whitelists.push_back(item["whitelistId"]);
+		}
+		return whitelists;
+	} 
+	catch (...) 
+	{
+		std::stringstream ss;
+		ss << "Failed to parse whitelist json from server: " << response.text;
+		write_log(ss.str(), tf47::prism::logger::Warning);
+		std::cout << "TF47-Prism:" << "update_ticket_count:"<< ss.str();
 	}
 	return whitelists;
 }
